@@ -1,0 +1,31 @@
+# Local MPKB runtime configuration
+#
+# Precedence:
+# 1) CLI args
+# 2) This YAML file
+#
+# model:
+#   type: openai          # openai | ollama
+#   name: gpt-5.2         # e.g. gpt-5.2 or qwen3-vl:4b
+#   reasoning:
+#     effort: medium      # openai: none|minimal|low|medium|high|xhigh
+#     summary: detailed   # openai: auto|concise|detailed
+#
+# For ollama, reasoning can be boolean:
+# model:
+#   type: ollama
+#   name: qwen3-vl:4b
+#   reasoning: false
+#
+# retrieve:
+#   top_k: 3
+
+model:
+  type: openai
+  name: gpt-5.2
+  reasoning:
+    effort: medium
+    summary: detailed
+
+retrieve:
+  top_k: 3

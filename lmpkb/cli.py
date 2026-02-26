@@ -2,7 +2,9 @@ from pathlib import Path
 
 import typer
 
-from lmpkb.agent.agent import answer
+from lmpkb.agent import agent
+from lmpkb.agent.config import resolve_agent_config
+from lmpkb.agent.llm_factory import build_llm
 from lmpkb.embed.embedder import ImageEmbedder
 from lmpkb.ingest.pdf import count_pages, load_pdf
 from lmpkb.store.vector_store import RetrievedPage, VectorStore
@@ -91,15 +93,47 @@ def retrieve(
 @app.command()
 def query(
     question: str,
-    top_k: int = typer.Option(1, help="Number of pages to retrieve"),
-    model: str = typer.Option("qwen3-vl:4b", envvar="OLLAMA_MODEL", help="Ollama model to use"),
+    top_k: int | None = typer.Option(None, help="Number of pages to retrieve"),
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML config file (defaults to lmpkb.yaml / lmpkb.yml if present)",
+    ),
+    model_type: str | None = typer.Option(
+        None,
+        help="Model provider: ollama or openai",
+    ),
+    model: str | None = typer.Option(
+        None,
+        help="Model name (defaults to provider-specific env var)",
+    ),
+    reasoning: str | None = typer.Option(
+        None,
+        help="Reasoning setting (ollama: true/false, openai: none|minimal|low|medium|high|xhigh)",
+    ),
 ) -> None:
     embedder = ImageEmbedder()
     store = VectorStore(path=CHROMA_PATH, collection_name=COLLECTION_NAME)
 
-    query_embedding = embedder.embed_query(question)
-    pages = store.retrieve(query_embedding, top_k=top_k)
+    def retrieve_fn(q: str, k: int) -> list[RetrievedPage]:
+        return store.retrieve(embedder.embed_query(q), top_k=k)
 
-    _print_retrieved_pages(pages)
-    typer.echo(typer.style("Answer:", bold=True))
-    answer(question, [p.image for p in pages], model=model)
+    try:
+        agent_config = resolve_agent_config(
+            config_path=str(config_file) if config_file is not None else None,
+            model_type=model_type,
+            model=model,
+            reasoning=reasoning,
+            top_k=top_k,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    llm = build_llm(agent_config)
+    agent.run(
+        question,
+        retrieve_fn,
+        top_k=agent_config.top_k,
+        llm=llm,
+    )

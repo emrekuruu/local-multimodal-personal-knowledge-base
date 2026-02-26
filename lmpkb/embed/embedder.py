@@ -8,7 +8,7 @@ class ImageEmbedder():
 
     def __init__(self):
         self.client = voyageai.Client()
-        self.model_name = "voyage-multimodal-3"
+        self.model_name = "voyage-multimodal-3.5"
 
     def embed_document(self, document) -> list[float]:
         result = self.client.multimodal_embed(
