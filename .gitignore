@@ -1,0 +1,8 @@
+.env
+.chroma
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/DS_Store
+5cc
