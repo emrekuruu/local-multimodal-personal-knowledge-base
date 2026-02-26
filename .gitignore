@@ -4,5 +4,5 @@
 **/*.pyc
 **/*.pyo
 **/*.pyd
-**/DS_Store
+**/.DS_Store
 5cc
