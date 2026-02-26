@@ -102,4 +102,4 @@ def query(
 
     _print_retrieved_pages(pages)
     typer.echo(typer.style("Answer:", bold=True))
-    typer.echo(answer(question, [p.image for p in pages], model=model))
+    answer(question, [p.image for p in pages], model=model)

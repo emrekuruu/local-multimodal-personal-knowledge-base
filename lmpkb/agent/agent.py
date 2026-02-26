@@ -6,7 +6,7 @@ from langchain_ollama import ChatOllama
 from PIL.Image import Image
 
 
-def answer(question: str, images: list[Image], model: str) -> str:
+def answer(question: str, images: list[Image], model: str) -> None:
     llm = ChatOllama(model=model, think=False)
 
     image_parts = []
@@ -20,4 +20,6 @@ def answer(question: str, images: list[Image], model: str) -> str:
         })
 
     message = HumanMessage(content=[{"type": "text", "text": question}, *image_parts])
-    return llm.invoke([message]).content
+    for chunk in llm.stream([message]):
+        print(chunk.content, end="", flush=True)
+    print()
