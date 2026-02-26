@@ -2,10 +2,10 @@
 
 Local multimodal RAG for personal documents.
 
-The pipeline is:
+The pipeline will:
 1. Convert PDF pages to images
-2. Embed pages with VoyageAI
-3. Store vectors in Chroma
+2. Embed pages through a multimodal embedder
+3. Store vectors in a vector store
 4. Run a retrieval-first agent with a retrieve loop (`retrieve` -> `retrieve` -> ... -> `final_answer`)
 
 ## Features
@@ -13,7 +13,7 @@ The pipeline is:
 - PDF page-level ingestion and indexing
 - Image-first retrieval over document pages
 - Multi-hop retrieval loop with explicit tool actions
-- Provider-agnostic LLM setup via config (`ollama` or `openai`)
+- Provider-agnostic LLM setup via config (e.g., `ollama`, `openai`)
 - YAML + CLI config precedence (CLI overrides YAML)
 
 ## Requirements
@@ -21,7 +21,7 @@ The pipeline is:
 - Python `>=3.11,<3.14`
 - Poetry
 - Provider credentials:
-  - VoyageAI key for embeddings
+  - VoyageAI key for embeddings if using voyageai for embeddings
   - OpenAI key if using `openai` models
   - Ollama running locally if using `ollama` models
 
@@ -77,15 +77,11 @@ retrieve:
 
 Indexes all PDFs under a folder.
 
-
-
 ![embed demo](assets/embed.gif)
 
 ### `retrieve`
 
 Retrieves top matching pages for a question, without generation.
-
-
 
 ![retrieve demo](assets/retrieve.gif)
 
