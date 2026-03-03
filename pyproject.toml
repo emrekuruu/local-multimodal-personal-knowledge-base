@@ -19,6 +19,7 @@ dependencies = [
     "pymupdf",
     "voyageai (>=0.3.7,<0.4.0)",
     "langchain-openai (>=1.1.10,<2.0.0)",
+    "tavily-python",
 ]
 
 [project.scripts]

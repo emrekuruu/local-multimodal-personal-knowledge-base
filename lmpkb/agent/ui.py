@@ -67,6 +67,10 @@ def print_action_retrieve(query: str) -> None:
     print(f"{_BOLD}Action:{_RESET} retrieve  →  {_CYAN}{query}{_RESET}\n")
 
 
+def print_action_web_search(query: str) -> None:
+    print(f"{_BOLD}Action:{_RESET} web_search  →  {_CYAN}{query}{_RESET}\n")
+
+
 def print_action_answer() -> None:
     print(f"{_BOLD}Action:{_RESET} answer\n")
 
