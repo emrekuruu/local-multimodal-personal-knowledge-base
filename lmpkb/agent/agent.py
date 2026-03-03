@@ -37,7 +37,10 @@ def run(
     retrieve_fn: Callable[[str, int], list[RetrievedPage]],
     top_k: int,
     llm: Any,
-) -> None:
+    history: list | None = None,
+    show_steps: bool = False,
+    show_reasoning: bool = False,
+) -> list:
     retrieve_tool = make_retrieve_tool(retrieve_fn, top_k=top_k)
     web_search_tool = make_web_search_tool()
     code_exec_tool = make_code_exec_tool()
@@ -47,22 +50,23 @@ def run(
         [retrieve_tool.tool, web_search_tool, code_exec_tool, final_answer_tool],
         tool_choice="any",
     )
-    messages = [SystemMessage(content=_SYSTEM), HumanMessage(content=task)]
+    messages = [SystemMessage(content=_SYSTEM), *(history or []), HumanMessage(content=task)]
 
     for step in range(1, MAX_STEPS + 1):
-        ui.print_step(step)
+        if show_steps:
+            ui.print_step(step)
 
         showed_thinking = False
         response = None
         for chunk in llm_with_tools.stream(messages):
-            reasoning_text = ui.parse_reasoning(chunk)
-            if reasoning_text:
+            reasoning_text = ui.parse_reasoning(chunk) if show_reasoning else None
+            if reasoning_text is not None:
                 if not showed_thinking:
                     ui.print_thinking_header()
                     showed_thinking = True
                 ui.print_thinking_chunk(reasoning_text)
             response = chunk if response is None else response + chunk
-        if showed_thinking:
+        if show_reasoning and showed_thinking:
             print("\n")
 
         messages.append(response)
@@ -73,7 +77,7 @@ def run(
                 raise RuntimeError("Model returned plain text with no tool call and empty content.")
             ui.print_action_answer()
             ui.print_answer_header()
-            print(answer_text)
+            ui.print_assistant_text(answer_text)
             print()
             break
 
@@ -124,7 +128,7 @@ def run(
                 ui.print_action_answer()
                 ui.print_answer_header()
                 if answer_text:
-                    print(answer_text)
+                    ui.print_assistant_text(answer_text)
                 print()
                 tool_messages.append(ToolMessage(
                     content=f"Final answer delivered: {answer_text}",
@@ -143,3 +147,5 @@ def run(
             break
     else:
         raise RuntimeError(f"Agent reached max steps ({MAX_STEPS}) without answering")
+
+    return messages

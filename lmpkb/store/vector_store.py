@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +24,8 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"},
         )
 
+        self.directory =  Path(os.environ.get("LMPKB_CONFIG")).parent 
+
     def index(self, embedding: list[float], source: str, page_number: int) -> None:
         self.collection.upsert(
             ids=[f"{source}::{page_number}"],
@@ -38,8 +41,8 @@ class VectorStore:
         )
         pages = []
         for meta in results["metadatas"][0]:
-            source = meta["source"]
+            source = self.directory / meta["source"]
             page_number = meta["page_number"]
-            image = load_pdf(Path(source))[page_number][1]
-            pages.append(RetrievedPage(image=image, source=source, page_number=page_number))
+            image = load_pdf(source)[page_number][1]
+            pages.append(RetrievedPage(image=image, source=str(source), page_number=page_number))
         return pages

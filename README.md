@@ -104,28 +104,24 @@ Retrieves top matching pages for a question, without generation.
 
 ![retrieve demo](assets/retrieve.gif)
 
-### `query`
+### Chat Mode (`lmpkb`)
 
-Runs the autonomous agent loop. The agent plans its own approach using available tools (`retrieve`, `web_search`, `code_exec`, `final_answer`), can fan out parallel tool calls, and stops when it calls `final_answer`. You can override YAML from CLI:
-
-OpenAI override example:
+Running the package name directly starts persistent chat mode:
 
 ```bash
-lmpkb query "..." \
-  --model-type openai \
-  --model gpt-5.2 \
-  --reasoning medium \
-  --top-k 3
+lmpkb
 ```
 
-Ollama override example:
+Chat mode reuses the saved session history between turns, so you can converse continuously.
+Exit with `/bye` or `Ctrl+C`.
+Use `/help` to list commands.
+Use `/clear` to reset memory and clear the visible chat.
+Use `/verbose` to toggle step/reasoning traces.
+
+You can override YAML settings when starting chat:
 
 ```bash
-lmpkb query "..." \
-  --model-type ollama \
-  --model qwen3-vl:4b \
-  --reasoning false \
-  --top-k 3
+lmpkb --model-type openai --model gpt-5.2 --reasoning medium --top-k 3
 ```
 
 #### Example Usage
@@ -147,7 +143,7 @@ lmpkb query "..." \
 
 ![Multi Hop Video](assets/multi-hop.gif)
 
-## Key Query Flags
+## Key Chat Flags
 
 - `--config`, `-c`: Path to YAML config
 - `--model-type`: `ollama` or `openai`
@@ -161,7 +157,7 @@ lmpkb query "..." \
 
 ```text
 lmpkb/
-├── cli.py                    # Typer commands: embed / retrieve / query
+├── cli.py                    # Typer commands: chat mode (root) / embed / retrieve
 ├── ingest/
 │   └── pdf.py                # PDF -> page images
 ├── embed/

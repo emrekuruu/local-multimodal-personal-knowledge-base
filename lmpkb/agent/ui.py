@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any
 
@@ -6,18 +7,24 @@ from lmpkb.store.vector_store import RetrievedPage
 _BOLD = "\033[1m"
 _CYAN = "\033[36m"
 _GREY = "\033[90m"
+_ORANGE = "\033[38;5;208m"
 _RESET = "\033[0m"
-_SEP = "──────────────────────────────────────────"
+
+
+def print_agent_turn_header() -> None:
+    print(f"\n{_BOLD}{_CYAN}Assistant{_RESET}")
+
+
+def print_agent_turn_footer() -> None:
+    print()
 
 
 def print_step(step: int) -> None:
-    print(f"\n{_BOLD}{_SEP}{_RESET}")
-    print(f"{_BOLD}Step {step}{_RESET}")
-    print(f"{_BOLD}{_SEP}{_RESET}\n")
+    print(f"{_GREY}  step {step}{_RESET}")
 
 
 def print_thinking_header() -> None:
-    print(f"{_GREY}Thinking:{_RESET}")
+    print(f"{_GREY}  thinking: {_RESET}", end="", flush=True)
 
 
 def print_thinking_chunk(text: str) -> None:
@@ -64,34 +71,51 @@ def parse_reasoning(chunk: Any) -> str | None:
 
 
 def print_action_retrieve(query: str) -> None:
-    print(f"{_BOLD}Action:{_RESET} retrieve  →  {_CYAN}{query}{_RESET}\n")
+    print(f"{_GREY}  • retrieve: {query}{_RESET}")
 
 
 def print_action_web_search(query: str) -> None:
-    print(f"{_BOLD}Action:{_RESET} web_search  →  {_CYAN}{query}{_RESET}\n")
+    print(f"{_GREY}  • web_search: {query}{_RESET}")
 
 
 def print_action_code_exec(code: str) -> None:
-    print(f"{_BOLD}Action:{_RESET} code_exec  ↓\n")
+    print(f"{_GREY}  • code_exec{_RESET}")
     for line in code.splitlines():
-        print(f"  {_CYAN}{line}{_RESET}")
+        print(f"{_GREY}    {line}{_RESET}")
     print()
 
 
 def print_action_answer() -> None:
-    print(f"{_BOLD}Action:{_RESET} answer\n")
+    return
 
 
 def print_retrieved_pages(pages: list[RetrievedPage]) -> None:
-    print(f"{_BOLD}Retrieved pages:{_RESET}")
+    print(f"{_GREY}    sources:{_RESET}")
     for i, page in enumerate(pages, 1):
         print(
-            f"  {_BOLD}{i}{_RESET}. "
-            f"{_CYAN}{Path(page.source).name}{_RESET}"
-            f"  —  page {page.page_number + 1}"
+            f"{_GREY}      {i}. {Path(page.source).name} (page {page.page_number + 1}){_RESET}"
         )
     print()
 
 
 def print_answer_header() -> None:
-    print(f"{_BOLD}Answer:{_RESET}")
+    return
+
+
+def _render_markdown_bold(text: str) -> str:
+    # Robust inline bold parsing without relying on complex regex edge cases.
+    parts = text.split("**")
+    if len(parts) < 3:
+        return text
+
+    rendered: list[str] = []
+    for i, part in enumerate(parts):
+        if i % 2 == 1 and part:
+            rendered.append(f"{_ORANGE}{_BOLD}{part}{_RESET}")
+        else:
+            rendered.append(part)
+    return "".join(rendered)
+
+
+def print_assistant_text(text: str) -> None:
+    print(_render_markdown_bold(text))
