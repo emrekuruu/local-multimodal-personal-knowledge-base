@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 
 from lmpkb.agent import agent
-from lmpkb.agent.config import resolve_agent_config
+from lmpkb.agent.config import resolve_agent_config, resolve_store_path
 from lmpkb.agent.llm_factory import build_llm
 from lmpkb.embed.embedder import ImageEmbedder
 from lmpkb.ingest.pdf import count_pages, load_pdf
@@ -11,7 +11,6 @@ from lmpkb.store.vector_store import RetrievedPage, VectorStore
 
 app = typer.Typer()
 
-CHROMA_PATH = ".chroma"
 COLLECTION_NAME = "documents"
 
 
@@ -30,7 +29,15 @@ PREVIEW_LIMIT = 5
 
 
 @app.command()
-def embed(folder: Path) -> None:
+def embed(
+    folder: Path,
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML config file (defaults to lmpkb.yaml / lmpkb.yml if present)",
+    ),
+) -> None:
     pdf_files = list(folder.glob("**/*.pdf"))
 
     if not pdf_files:
@@ -63,8 +70,13 @@ def embed(folder: Path) -> None:
     typer.confirm("Proceed with embedding?", abort=True)
     typer.echo("")
 
+    try:
+        store_path = resolve_store_path(str(config_file) if config_file is not None else None)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
     embedder = ImageEmbedder()
-    store = VectorStore(path=CHROMA_PATH, collection_name=COLLECTION_NAME)
+    store = VectorStore(path=store_path, collection_name=COLLECTION_NAME)
 
     for pdf_path in pdf_files:
         typer.echo(f"Embedding {typer.style(pdf_path.name, fg=typer.colors.CYAN)}...")
@@ -80,9 +92,20 @@ def embed(folder: Path) -> None:
 def retrieve(
     question: str,
     top_k: int = typer.Option(3, help="Number of pages to retrieve"),
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML config file (defaults to lmpkb.yaml / lmpkb.yml if present)",
+    ),
 ) -> None:
+    try:
+        store_path = resolve_store_path(str(config_file) if config_file is not None else None)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
     embedder = ImageEmbedder()
-    store = VectorStore(path=CHROMA_PATH, collection_name=COLLECTION_NAME)
+    store = VectorStore(path=store_path, collection_name=COLLECTION_NAME)
 
     query_embedding = embedder.embed_query(question)
     pages = store.retrieve(query_embedding, top_k=top_k)
@@ -113,12 +136,6 @@ def query(
         help="Reasoning setting (ollama: true/false, openai: none|minimal|low|medium|high|xhigh)",
     ),
 ) -> None:
-    embedder = ImageEmbedder()
-    store = VectorStore(path=CHROMA_PATH, collection_name=COLLECTION_NAME)
-
-    def retrieve_fn(q: str, k: int) -> list[RetrievedPage]:
-        return store.retrieve(embedder.embed_query(q), top_k=k)
-
     try:
         agent_config = resolve_agent_config(
             config_path=str(config_file) if config_file is not None else None,
@@ -129,6 +146,12 @@ def query(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+    embedder = ImageEmbedder()
+    store = VectorStore(path=agent_config.store_path, collection_name=COLLECTION_NAME)
+
+    def retrieve_fn(q: str, k: int) -> list[RetrievedPage]:
+        return store.retrieve(embedder.embed_query(q), top_k=k)
 
     llm = build_llm(agent_config)
     agent.run(

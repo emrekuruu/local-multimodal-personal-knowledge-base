@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -9,6 +10,7 @@ ModelType = Literal["ollama", "openai"]
 _OPENAI_REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh"}
 _OPENAI_REASONING_SUMMARIES = {"auto", "concise", "detailed"}
 _DEFAULT_CONFIG_FILES = ("lmpkb.yaml", "lmpkb.yml", ".lmpkb.yaml", ".lmpkb.yml")
+_ENV_CONFIG_VAR = "LMPKB_CONFIG"
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,7 @@ class AgentConfig:
     model: str
     reasoning: bool | dict[str, str] | None
     top_k: int
+    store_path: str
 
 
 def _parse_bool(raw: str, *, field_name: str) -> bool:
@@ -28,26 +31,47 @@ def _parse_bool(raw: str, *, field_name: str) -> bool:
     raise ValueError(f"{field_name} must be a boolean (true/false)")
 
 
-def _load_yaml_config(config_path: str | None) -> dict:
+def _load_yaml_config(config_path: str | None) -> tuple[Path | None, dict]:
     resolved_path: Path | None = None
     if config_path:
-        resolved_path = Path(config_path)
+        resolved_path = Path(config_path).resolve()
         if not resolved_path.exists():
             raise ValueError(f"Config file not found: {config_path}")
     else:
-        for candidate in _DEFAULT_CONFIG_FILES:
-            candidate_path = Path(candidate)
-            if candidate_path.exists():
-                resolved_path = candidate_path
-                break
+        env_path = os.environ.get(_ENV_CONFIG_VAR)
+        if env_path:
+            resolved_path = Path(env_path).resolve()
+            if not resolved_path.exists():
+                raise ValueError(f"Config file from {_ENV_CONFIG_VAR} not found: {env_path}")
+        else:
+            for candidate in _DEFAULT_CONFIG_FILES:
+                candidate_path = Path(candidate)
+                if candidate_path.exists():
+                    resolved_path = candidate_path.resolve()
+                    break
 
     if resolved_path is None:
-        return {}
+        return None, {}
 
     data = yaml.safe_load(resolved_path.read_text()) or {}
     if not isinstance(data, dict):
         raise ValueError(f"Config file must be a YAML mapping: {resolved_path}")
-    return data
+    return resolved_path, data
+
+
+def _resolve_path_from_yaml(raw: object, yaml_path: Path | None) -> str:
+    p = Path(str(raw))
+    if not p.is_absolute() and yaml_path is not None:
+        p = yaml_path.parent / p
+    return str(p.resolve())
+
+
+def resolve_store_path(config_path: str | None) -> str:
+    yaml_path, data = _load_yaml_config(config_path)
+    raw = _yaml_get(data, "store", "path")
+    if raw is None:
+        raise ValueError("store.path is required (set in YAML: store.path)")
+    return _resolve_path_from_yaml(raw, yaml_path)
 
 
 def _yaml_get(data: dict, *keys: str):
@@ -71,7 +95,7 @@ def resolve_agent_config(
     reasoning: str | None,
     top_k: int | None,
 ) -> AgentConfig:
-    yaml_cfg = _load_yaml_config(config_path)
+    yaml_path, yaml_cfg = _load_yaml_config(config_path)
 
     yaml_model_type = _yaml_get(yaml_cfg, "model", "type")
     if yaml_model_type is None:
@@ -95,6 +119,11 @@ def resolve_agent_config(
         raise ValueError("retrieve amount (top_k) must be an integer") from exc
     if resolved_top_k < 1:
         raise ValueError("retrieve amount (top_k) must be >= 1")
+
+    raw_store_path = _yaml_get(yaml_cfg, "store", "path")
+    if raw_store_path is None:
+        raise ValueError("store.path is required (set in YAML: store.path)")
+    resolved_store_path = _resolve_path_from_yaml(raw_store_path, yaml_path)
 
     yaml_model = _yaml_get(yaml_cfg, "model", "name")
     if yaml_model is None:
@@ -121,6 +150,7 @@ def resolve_agent_config(
             model=resolved_model,
             reasoning=resolved_reasoning,
             top_k=resolved_top_k,
+            store_path=resolved_store_path,
         )
 
     resolved_model = model or yaml_model
@@ -161,4 +191,5 @@ def resolve_agent_config(
         model=resolved_model,
         reasoning=resolved_reasoning,
         top_k=resolved_top_k,
+        store_path=resolved_store_path,
     )

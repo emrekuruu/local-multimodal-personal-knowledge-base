@@ -29,3 +29,6 @@ model:
 
 retrieve:
   top_k: 3
+
+store:
+  path: .chroma
