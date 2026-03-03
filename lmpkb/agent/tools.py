@@ -1,5 +1,7 @@
 import base64
 import io
+import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -100,6 +102,56 @@ def make_web_search_tool() -> BaseTool:
         return "\n".join(lines)
 
     return web_search
+
+
+_MAX_OUTPUT_CHARS = 4000
+
+
+def make_code_exec_tool() -> BaseTool:
+    @tool("code_exec")
+    def code_exec(code: str) -> str:
+        """Execute Python code to perform calculations or run methods and return the result.
+
+        When to use:
+        - Arithmetic or mathematical computations that must be exact
+        - Running algorithms, sorting, filtering, or aggregating data
+        - Calling library functions (math, statistics, datetime, etc.)
+        - Verifying a formula or hypothesis through direct execution
+
+        When NOT to use:
+        - Formatting or presenting output to the user — use final_answer for that
+        - Fetching external data — use retrieve or web_search instead
+        - Simple lookups that don't require computation
+
+        Rules:
+        - Write complete, self-contained Python (include all imports)
+        - Each call is stateless — do not rely on variables from previous calls
+        - Use print() only to surface the computed value for your own reasoning — not to format output for the user
+        - Execution times out after 30s
+
+        Returns stdout and stderr from the execution.
+        """
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-c", code],
+                timeout=30,
+                capture_output=True,
+                text=True,
+            )
+            output = (
+                f"stdout:\n{proc.stdout or '(empty)'}\n\n"
+                f"stderr:\n{proc.stderr or '(empty)'}\n\n"
+                f"exit code: {proc.returncode}"
+            )
+        except subprocess.TimeoutExpired as exc:
+            exc.kill()
+            output = "error: execution timed out after 30s"
+
+        if len(output) > _MAX_OUTPUT_CHARS:
+            output = output[:_MAX_OUTPUT_CHARS] + f"\n... (truncated at {_MAX_OUTPUT_CHARS} chars)"
+        return output
+
+    return code_exec
 
 
 def make_final_answer_tool() -> BaseTool:

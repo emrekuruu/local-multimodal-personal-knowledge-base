@@ -10,9 +10,10 @@ This project turns your PDF collection into a searchable multimodal knowledge ba
 It indexes each page as an image and exposes it to an autonomous reasoning agent that decides its own plan for answering based on available tools.
 The agent is goalless by design — it reads tool descriptions to decide what to do, rather than following a hardcoded retrieval-first policy.
 
-The agent has three tools:
+The agent has four tools:
 - **`retrieve`** — semantic search over your local document index, returns page images
 - **`web_search`** — live web search via Tavily for information not in your documents
+- **`code_exec`** — executes Python for calculations, algorithms, and data processing
 - **`final_answer`** — signals completion and delivers the answer
 
 The agent can call multiple tools in a single step (parallel tool calls), so it can fan out several searches simultaneously and synthesize results in the next turn.
@@ -25,9 +26,11 @@ The pipeline will:
 
 ## Features
 
+- Parallel tool calls 
 - PDF page-level ingestion and indexing
 - Image-first retrieval over document pages
-- Parallel tool calls 
+- Live web search via Tavily 
+- Python code execution for calculations and data processing 
 
 ## Requirements
 
@@ -103,7 +106,7 @@ Retrieves top matching pages for a question, without generation.
 
 ### `query`
 
-Runs the autonomous agent loop. The agent plans its own approach using available tools (`retrieve`, `web_search`, `final_answer` ... ), can fan out parallel tool calls, and stops when it calls `final_answer`. You can also override YAML from CLI:
+Runs the autonomous agent loop. The agent plans its own approach using available tools (`retrieve`, `web_search`, `code_exec`, `final_answer`), can fan out parallel tool calls, and stops when it calls `final_answer`. You can override YAML from CLI:
 
 OpenAI override example:
 
@@ -166,9 +169,9 @@ lmpkb/
 ├── store/
 │   └── vector_store.py       # Chroma persistence + retrieval
 └── agent/
-    ├── agent.py              # Main subquery + tool-calling loop
+    ├── agent.py              # Autonomous tool-calling loop
     ├── config.py             # YAML + CLI config resolution/validation
     ├── llm_factory.py        # Provider-specific LLM creation
-    ├── tools.py              # retrieve/web_search/final_answer tool definitions
+    ├── tools.py              # retrieve/web_search/code_exec/final_answer tool definitions
     └── ui.py                 # terminal rendering + reasoning parsing
 ```

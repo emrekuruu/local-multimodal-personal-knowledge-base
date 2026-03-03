@@ -3,7 +3,7 @@ from typing import Any, Callable
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from lmpkb.agent import ui
-from lmpkb.agent.tools import make_final_answer_tool, make_retrieve_tool, make_web_search_tool
+from lmpkb.agent.tools import make_code_exec_tool, make_final_answer_tool, make_retrieve_tool, make_web_search_tool
 from lmpkb.store.vector_store import RetrievedPage
 
 MAX_STEPS = 8
@@ -40,10 +40,11 @@ def run(
 ) -> None:
     retrieve_tool = make_retrieve_tool(retrieve_fn, top_k=top_k)
     web_search_tool = make_web_search_tool()
+    code_exec_tool = make_code_exec_tool()
     final_answer_tool = make_final_answer_tool()
 
     llm_with_tools = llm.bind_tools(
-        [retrieve_tool.tool, web_search_tool, final_answer_tool],
+        [retrieve_tool.tool, web_search_tool, code_exec_tool, final_answer_tool],
         tool_choice="any",
     )
     messages = [SystemMessage(content=_SYSTEM), HumanMessage(content=task)]
@@ -93,6 +94,17 @@ def run(
                     content=content,
                     artifact=artifact,
                     name="retrieve",
+                    tool_call_id=tc["id"],
+                ))
+
+            elif tc_name == "code_exec":
+                code = tc["args"]["code"]
+                ui.print_action_code_exec(code)
+
+                result = code_exec_tool.invoke(tc["args"])
+                tool_messages.append(ToolMessage(
+                    content=result,
+                    name="code_exec",
                     tool_call_id=tc["id"],
                 ))
 
