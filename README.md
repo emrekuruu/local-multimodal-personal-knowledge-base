@@ -7,34 +7,36 @@ A multi-hop multimodal RAG system to chat with your PDFs locally, using iterativ
 ## Overview
 
 This project turns your PDF collection into a searchable multimodal knowledge base.
-It indexes each page as an image, retrieves relevant pages for a question, and uses a retrieval-first agent to answer from grounded evidence.
-For multi-hop questions, the model generates focused subqueries and iteratively retrieves context until it can produce a final grounded answer.
-It is built for fast local experimentation with different model providers (`ollama` and `openai`) through YAML/CLI configuration.
+It indexes each page as an image and exposes it to an autonomous reasoning agent that decides its own plan for answering based on available tools.
+The agent is goalless by design — it reads tool descriptions to decide what to do, rather than following a hardcoded retrieval-first policy.
 
-Instead of forcing a single-shot answer, the agent works like a researcher: it breaks complex questions into smaller subqueries, retrieves the missing context hop by hop, and only answers once enough evidence is collected. This makes document chat more reliable for cross-page and cross-section questions.
+The agent has three tools:
+- **`retrieve`** — semantic search over your local document index, returns page images
+- **`web_search`** — live web search via Tavily for information not in your documents
+- **`final_answer`** — signals completion and delivers the answer
+
+The agent can call multiple tools in a single step (parallel tool calls), so it can fan out several searches simultaneously and synthesize results in the next turn.
 
 The pipeline will:
 1. Convert PDF pages to images
 2. Embed pages through a multimodal embedder
 3. Store vectors in a vector store
-4. Run a retrieval-first subquery loop (`generate subquery` -> `retrieve` -> repeat -> `final_answer`)
+4. Run an autonomous tool-calling loop until `final_answer` is called
 
 ## Features
 
 - PDF page-level ingestion and indexing
 - Image-first retrieval over document pages
-- Subquery-driven multi-hop retrieval loop with explicit tool actions
-- Automatic subquery generation for multi-hop questions
-- Provider-agnostic LLM setup via config (e.g., `ollama`, `openai`)
-- YAML + CLI config precedence (CLI overrides YAML)
+- Parallel tool calls 
 
 ## Requirements
 
 - Python `>=3.11,<3.14`
 - Poetry
 - Provider credentials:
-  - VoyageAI key for embeddings if using voyageai for embeddings
-  - OpenAI key if using `openai` models
+  - `VOYAGE_API_KEY` — VoyageAI key for multimodal embeddings
+  - `OPENAI_API_KEY` — if using `openai` models
+  - `TAVILY_API_KEY` — for the web search tool
   - Ollama running locally if using `ollama` models
 
 ## Installation
@@ -59,19 +61,21 @@ There are no fallback defaults for agent runtime settings. Missing required fiel
 
 ### `lmpkb.yaml` example
 
+OpenAI format:
+
 ```yaml
 model:
-  type: openai        # openai | ollama
+  type: openai        
   name: gpt-5.2
   reasoning:
-    effort: medium    # openai: none|minimal|low|medium|high|xhigh
-    summary: detailed # openai: auto|concise|detailed (optional)
+    effort: medium    # none|minimal|low|medium|high|xhigh
+    summary: detailed # auto|concise|detailed (optional)
 
 retrieve:
   top_k: 3
 ```
 
-Ollama reasoning format:
+Ollama format:
 
 ```yaml
 model:
@@ -99,7 +103,7 @@ Retrieves top matching pages for a question, without generation.
 
 ### `query`
 
-Runs the agent loop (generate subquery -> retrieve -> iterate -> final answer). You can override YAML from CLI:
+Runs the autonomous agent loop. The agent plans its own approach using available tools (`retrieve`, `web_search`, `final_answer` ... ), can fan out parallel tool calls, and stops when it calls `final_answer`. You can also override YAML from CLI:
 
 OpenAI override example:
 
@@ -121,6 +125,7 @@ lmpkb query "..." \
   --top-k 3
 ```
 
+#### Example Usage
 
 **Needed Context 1 (Page 14)**
 
@@ -164,6 +169,6 @@ lmpkb/
     ├── agent.py              # Main subquery + tool-calling loop
     ├── config.py             # YAML + CLI config resolution/validation
     ├── llm_factory.py        # Provider-specific LLM creation
-    ├── tools.py              # retrieve/final_answer tools used in the loop
+    ├── tools.py              # retrieve/web_search/final_answer tool definitions
     └── ui.py                 # terminal rendering + reasoning parsing
 ```
