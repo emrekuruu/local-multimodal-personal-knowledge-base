@@ -139,7 +139,7 @@ lmpkb --model-type openai --model gpt-5.2 --reasoning medium --top-k 3
   <img src="assets/needed_context_2.png" alt="multi hop 2" width="500" />
 </p>
 
-**Multi Hop Retrieval Loop (with Subqueries)**
+**Multi Hop Retrieval Loop (with Subqueries and Code Execuation)**
 
 ![Multi Hop Video](assets/multi-hop.gif)
 

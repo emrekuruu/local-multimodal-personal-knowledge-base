@@ -24,13 +24,15 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"},
         )
 
-        self.directory =  Path(os.environ.get("LMPKB_CONFIG")).parent 
+        config_path = os.environ.get("LMPKB_CONFIG")
+        self.directory = Path(config_path).resolve().parent if config_path else Path.cwd()
 
     def index(self, embedding: list[float], source: str, page_number: int) -> None:
+        source_path = str(Path(source).resolve())
         self.collection.upsert(
-            ids=[f"{source}::{page_number}"],
+            ids=[f"{source_path}::{page_number}"],
             embeddings=[embedding],
-            metadatas=[{"source": source, "page_number": page_number}],
+            metadatas=[{"source": source_path, "page_number": page_number}],
         )
 
     def retrieve(self, query_embedding: list[float], top_k: int) -> list[RetrievedPage]:
@@ -41,7 +43,8 @@ class VectorStore:
         )
         pages = []
         for meta in results["metadatas"][0]:
-            source = self.directory / meta["source"]
+            stored_source = Path(meta["source"])
+            source = stored_source if stored_source.is_absolute() else self.directory / stored_source
             page_number = meta["page_number"]
             image = load_pdf(source)[page_number][1]
             pages.append(RetrievedPage(image=image, source=str(source), page_number=page_number))

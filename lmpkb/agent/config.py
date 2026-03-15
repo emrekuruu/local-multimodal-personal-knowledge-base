@@ -4,6 +4,11 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_PROJECT_ROOT / ".env")
 
 ModelType = Literal["ollama", "openai"]
 
@@ -44,14 +49,19 @@ def _load_yaml_config(config_path: str | None) -> tuple[Path | None, dict]:
             if not resolved_path.exists():
                 raise ValueError(f"Config file from {_ENV_CONFIG_VAR} not found: {env_path}")
         else:
-            for candidate in _DEFAULT_CONFIG_FILES:
-                candidate_path = Path(candidate)
-                if candidate_path.exists():
-                    resolved_path = candidate_path.resolve()
+            for base_dir in (Path.cwd(), _PROJECT_ROOT):
+                for candidate in _DEFAULT_CONFIG_FILES:
+                    candidate_path = base_dir / candidate
+                    if candidate_path.exists():
+                        resolved_path = candidate_path.resolve()
+                        break
+                if resolved_path is not None:
                     break
 
     if resolved_path is None:
         return None, {}
+
+    os.environ[_ENV_CONFIG_VAR] = str(resolved_path)
 
     data = yaml.safe_load(resolved_path.read_text()) or {}
     if not isinstance(data, dict):
